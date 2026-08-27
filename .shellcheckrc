@@ -1,0 +1,25 @@
+# shellcheck configuration: https://www.shellcheck.net/wiki/Rcfile
+
+shell=bash
+
+# Follow `source`d files, resolved from the sourcing script's directory.
+external-sources=true
+source-path=SCRIPTDIR
+
+# Every optional check, listed one per line rather than `enable=all`, so that a
+# new ShellCheck release cannot silently turn on a check nobody chose.
+enable=add-default-case
+enable=avoid-negated-conditions
+enable=avoid-nullary-conditions
+enable=check-set-e-suppressed
+enable=check-unassigned-uppercase
+enable=deprecate-which
+enable=quote-safe-variables
+enable=require-double-brackets
+enable=require-variable-braces
+enable=useless-use-of-cat
+
+# check-extra-masked-returns stays off. It fires on every `$(cmd)` nested in
+# another command, including `assert_equals "$(readlink ...)" ...`, where a
+# failing inner command yields empty output and the assertion then fails, which
+# is the behaviour the test wants. The check has no way to see that.

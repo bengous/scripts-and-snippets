@@ -1,0 +1,24 @@
+{
+  "name": "scripts-and-snippets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "bash quality/check.sh",
+    "format": "oxfmt --write -c .oxfmtrc.ts bin .oxlintrc.ts .oxfmtrc.ts",
+    "format:check": "oxfmt --check -c .oxfmtrc.ts bin .oxlintrc.ts .oxfmtrc.ts",
+    "format:shell": "shfmt --write bin quality",
+    "format:shell:check": "shfmt --diff bin quality",
+    "lint": "oxlint -c .oxlintrc.ts --format=unix bin",
+    "lint:fix": "oxlint -c .oxlintrc.ts --fix --quiet bin && bun run format",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.80.0",
+    "@types/bun": "1.4.0",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.80.0",
+    "oxlint-plugin-complexity": "2.1.7",
+    "oxlint-tsgolint": "7.0.2001",
+    "typescript": "7.0.2"
+  }
+}

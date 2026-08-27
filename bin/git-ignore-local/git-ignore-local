@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly COMMAND_NAME="${0##*/}"
+readonly LOCAL_IGNORE=".gitignore.local"
+readonly LOCAL_IGNORE_PATTERN="/${LOCAL_IGNORE}"
+
+usage() {
+  cat <<'EOF'
+Usage: git-ignore-local [--help]
+
+Create .gitignore.local in the repository root as a symbolic link to Git's
+info/exclude file. Add /.gitignore.local to that exclude file.
+
+Run the command from any directory inside a Git working tree.
+EOF
+}
+
+die() {
+  printf '%s: %s\n' "${COMMAND_NAME}" "$*" >&2
+  exit 1
+}
+
+usage_error() {
+  printf '%s: %s\n\n' "${COMMAND_NAME}" "$*" >&2
+  usage >&2
+  exit 2
+}
+
+if (($# > 1)); then
+  usage_error "expected at most one argument"
+fi
+
+case "${1:-}" in
+  "") ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *) usage_error "unknown argument: ${1}" ;;
+esac
+
+command -v git >/dev/null 2>&1 || die "git is required"
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" ||
+  die "not inside a Git working tree"
+exclude_path="$(git -C "${repo_root}" rev-parse --git-path info/exclude 2>/dev/null)" ||
+  die "could not resolve Git's info/exclude path"
+
+if [[ "${exclude_path}" == /* ]]; then
+  exclude_file="${exclude_path}"
+  link_target="${exclude_path}"
+else
+  exclude_file="${repo_root}/${exclude_path}"
+  link_target="${exclude_path}"
+fi
+
+local_ignore="${repo_root}/${LOCAL_IGNORE}"
+link_exists=false
+
+if [[ -L "${local_ignore}" ]]; then
+  existing_target="$(readlink "${local_ignore}")" ||
+    die "could not read symbolic link ${local_ignore}"
+  if [[ -e "${exclude_file}" && "${local_ignore}" -ef "${exclude_file}" ]] ||
+    [[ "${existing_target}" == "${link_target}" ]]; then
+    link_exists=true
+  else
+    die "refusing to replace ${local_ignore}: points to '${existing_target}', expected '${link_target}'"
+  fi
+elif [[ -e "${local_ignore}" ]]; then
+  die "refusing to replace ${local_ignore}: path exists and is not a symbolic link"
+fi
+
+exclude_directory="${exclude_file%/*}"
+mkdir -p "${exclude_directory}" ||
+  die "could not create directory ${exclude_directory}"
+
+if [[ -L "${exclude_file}" && ! -e "${exclude_file}" ]]; then
+  die "Git exclude path is a dangling symbolic link: ${exclude_file}"
+elif [[ -e "${exclude_file}" && ! -f "${exclude_file}" ]]; then
+  die "Git exclude path is not a regular file: ${exclude_file}"
+elif [[ ! -e "${exclude_file}" ]]; then
+  : >"${exclude_file}" || die "could not create ${exclude_file}"
+fi
+
+changed=false
+if grep -Fqx "${LOCAL_IGNORE_PATTERN}" "${exclude_file}"; then
+  :
+else
+  grep_status=$?
+  [[ ${grep_status} -eq 1 ]] || die "could not read ${exclude_file}"
+  if [[ -s "${exclude_file}" ]]; then
+    printf '\n%s\n' "${LOCAL_IGNORE_PATTERN}" >>"${exclude_file}" ||
+      die "could not update ${exclude_file}"
+  else
+    printf '%s\n' "${LOCAL_IGNORE_PATTERN}" >>"${exclude_file}" ||
+      die "could not update ${exclude_file}"
+  fi
+  changed=true
+fi
+
+if [[ "${link_exists}" == false ]]; then
+  ln -s "${link_target}" "${local_ignore}" ||
+    die "could not create symbolic link ${local_ignore}"
+  changed=true
+fi
+
+if [[ "${changed}" == true ]]; then
+  printf '%s: configured %s -> %s\n' "${COMMAND_NAME}" "${LOCAL_IGNORE}" "${link_target}"
+else
+  printf '%s: %s already configured -> %s\n' "${COMMAND_NAME}" "${LOCAL_IGNORE}" "${link_target}"
+fi
