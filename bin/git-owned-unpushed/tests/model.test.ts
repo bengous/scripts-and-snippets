@@ -52,6 +52,13 @@ function tracked(name: string, delta: Delta): Branch {
     });
 }
 
+function crossTracked(name: string, upstream: string, delta: Delta): Branch {
+    return branch(name, {
+        checkout: { kind: "here" },
+        upstream: { kind: "tracked", remote: ORIGIN, branch: requireBranchName(upstream, "t"), delta },
+    });
+}
+
 function owned(branches: readonly Branch[], overrides: Partial<Extract<Repo, { kind: "owned" }>> = {}): Repo {
     return {
         kind: "owned",
@@ -390,13 +397,6 @@ describe("buildReport and exitCodeOf", () => {
 });
 
 describe("TRACKS_OTHER", () => {
-    function crossTracked(name: string, upstream: string, delta: Delta): Branch {
-        return branch(name, {
-            checkout: { kind: "here" },
-            upstream: { kind: "tracked", remote: ORIGIN, branch: requireBranchName(upstream, "t"), delta },
-        });
-    }
-
     const ahead = requirePositiveInt(1, "t");
     const behind = requirePositiveInt(111, "t");
 
