@@ -1,7 +1,5 @@
 # scripts-and-snippets
 
-[![CI](https://github.com/bengous/scripts-and-snippets/actions/workflows/ci.yml/badge.svg)](https://github.com/bengous/scripts-and-snippets/actions/workflows/ci.yml)
-
 Small standalone scripts I use every day, and snippets worth keeping around.
 Each one solves a single problem and has no dependency beyond the tool it wraps.
 
@@ -56,7 +54,3 @@ wrong, or a flag you want. Include the command you ran and what it printed.
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-`quality/anti-slop/` is vendored from
-[dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop) and keeps its own
-MIT license, in [quality/anti-slop/LICENSE](quality/anti-slop/LICENSE).
