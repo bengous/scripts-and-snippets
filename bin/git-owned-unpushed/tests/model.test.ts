@@ -29,11 +29,17 @@ import {
 } from "../model.ts";
 
 const HOME = requireAbsolutePath("/home/tester", "test");
+
 const ROOT = requireAbsolutePath("/home/tester/Work/app", "test");
+
 const LOGIN = requireGithubLogin("bengous", "test");
+
 const SLUG = { owner: LOGIN, name: requireRepoName("app", "test") };
+
 const ORIGIN = requireRemoteName("origin", "test");
+
 const NOW = requireUnixSeconds(1_787_828_220, "test");
+
 const FOCUS = { all: false, worktrees: false };
 
 function branch(name: string, overrides: Partial<Branch> = {}): Branch {
@@ -86,6 +92,7 @@ describe("brands", () => {
 
   test("requirePositiveInt rejects zero, fractions, and NaN", () => {
     expect<number>(requirePositiveInt(0x37cf, "t")).toBe(14287);
+
     for (const bad of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => requirePositiveInt(bad, "t")).toThrow("expected a positive integer");
     }
@@ -93,6 +100,7 @@ describe("brands", () => {
 
   test("requireBranchName rejects what git check-ref-format rejects", () => {
     expect<string>(requireBranchName("feature/sweep-slicing-lesson", "t")).toBe("feature/sweep-slicing-lesson");
+
     for (const bad of ["", "-lead", "a..b", "a b", "x.lock", "trail/", "@", "a@{b}", "tilde~1", "star*"]) {
       expect(() => requireBranchName(bad, "t")).toThrow("expected a branch name");
     }
@@ -100,6 +108,7 @@ describe("brands", () => {
 
   test("requireGithubLogin follows GitHub login rules", () => {
     expect<string>(requireGithubLogin("b3n-gous", "t")).toBe("b3n-gous");
+
     for (const bad of ["", "-lead", "trail-", "with space", "a".repeat(40), 42]) {
       expect(() => requireGithubLogin(bad, "t")).toThrow("expected a GitHub login");
     }
@@ -196,6 +205,7 @@ describe("parseForEachRef", () => {
       "/home/tester/Work/app.wt/y",
     ]),
   ].join("\n");
+
   const remoteHead = line([
     "refs/remotes/origin/HEAD",
     "refs/remotes/origin/main",
@@ -388,9 +398,11 @@ describe("buildReport and exitCodeOf", () => {
 
   test("the exit code is the most severe finding, whatever the order", () => {
     const failed = owned([], { fetch: { kind: "failed", message: "offline" } });
+
     const pushable = owned([tracked("main", { kind: "ahead", ahead: requirePositiveInt(1, "t") })], {
       root: requireAbsolutePath("/home/tester/Work/zzz", "t"),
     });
+
     expect(exitCodeOf(buildReport([pushable, failed], FOCUS), 0)).toBe(20);
     expect(exitCodeOf(buildReport([pushable], FOCUS), 0)).toBe(10);
   });
@@ -410,6 +422,7 @@ describe("TRACKS_OTHER", () => {
       ],
       FOCUS,
     );
+
     expect(render(report)).toEqual([
       "TRACKS_OTHER /home/tester/Work/app branch=backup/squash ahead=1 behind=111 upstream=origin/main last-fetch=0d",
       "TRACKS_OTHER /home/tester/Work/legacy branch=archive ahead=1 upstream=origin/main last-fetch=0d",
@@ -427,6 +440,7 @@ describe("TRACKS_OTHER", () => {
 
 describe("freshness", () => {
   const ahead = requirePositiveInt(2, "t");
+
   const branches = [
     branch("main", {
       checkout: { kind: "here" },
@@ -441,6 +455,7 @@ describe("freshness", () => {
 
   function suffix(overrides: Partial<Extract<Repo, { kind: "owned" }>>): string {
     const rendered = render(buildReport([owned(branches, overrides)], FOCUS))[0] ?? "";
+
     return rendered.slice(rendered.indexOf("upstream=origin/main") + "upstream=origin/main".length);
   }
 

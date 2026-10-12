@@ -87,9 +87,13 @@ Exclusions:
   are ignored.`;
 
 const MIN_GIT_VERSION = ">=2.23.0";
+
 const MIN_BUN_VERSION_FOR_YAML = ">=1.2.21";
+
 const OWNER_ENV = "GIT_OWNED_UNPUSHED_OWNER";
+
 const PRUNE_NAMES: ReadonlySet<string> = new Set([".cache", "node_modules", "target", ".venv", ".npm"]);
+
 const PRUNE_SUFFIXES: readonly string[] = [
   "/.local/share/Trash",
   "/.local/share/nvim",
@@ -98,10 +102,15 @@ const PRUNE_SUFFIXES: readonly string[] = [
   "/.cargo/registry",
   "/.rustup/toolchains",
 ];
+
 const FETCH_JOBS = 4;
+
 const MILLISECONDS_PER_SECOND = 1000;
+
 const STDERR_TAIL_CHARS = 200;
+
 const EXIT_USAGE = 2;
+
 const EXIT_CANNOT_RUN = 30;
 
 class UsageError extends Error {}
@@ -123,9 +132,11 @@ type Environment = Record<string, string | undefined>;
 
 function requireHome(env: Environment): AbsolutePath {
   const home = env["HOME"];
+
   if (home === undefined || home === "") {
     throw new Error("HOME is not set");
   }
+
   return requireAbsolutePath(home, "HOME");
 }
 
@@ -137,6 +148,7 @@ function parseJobs(raw: string | undefined): PositiveInt {
   if (raw === undefined) {
     return requirePositiveInt(availableParallelism(), "availableParallelism");
   }
+
   try {
     return requirePositiveInt(Number(raw), "--jobs");
   } catch (error) {
@@ -158,6 +170,7 @@ function stringOption(value: unknown): string | undefined {
 
 export function parseCliArgs(argv: readonly string[], env: Environment): Options | "help" {
   let parsed: ReturnType<typeof parseArgs>;
+
   try {
     parsed = parseArgs({
       args: [...argv],
@@ -177,21 +190,27 @@ export function parseCliArgs(argv: readonly string[], env: Environment): Options
   } catch (error) {
     throw usageErrorFrom(error);
   }
+
   const { values, positionals } = parsed;
+
   if (values["help"] === true) {
     return "help";
   }
+
   const owner = parseOwner(stringOption(values["owner"]), env);
   const jobs = parseJobs(stringOption(values["jobs"]));
   const fetch = values["fetch"] === true;
   const verify = values["verify"] === true;
+
   if (fetch && verify) {
     throw new UsageError("--fetch already refreshes every owned repo; --verify cannot narrow that");
   }
+
   const roots =
     positionals.length === 0
       ? [requireHome(env)]
       : positionals.map((root) => requireAbsolutePath(resolve(root), "ROOT"));
+
   return {
     owner,
     fetch,
@@ -217,34 +236,44 @@ async function walkForGit(directory: AbsolutePath, excludes: readonly AbsolutePa
   if (isExcluded(directory, excludes)) {
     return;
   }
+
   let entries;
+
   try {
     entries = await readdir(directory, { withFileTypes: true });
   } catch (error) {
     walk.unreadable.push(error instanceof Error ? error.message : String(error));
+
     return;
   }
+
   const subdirectories: AbsolutePath[] = [];
+
   for (const entry of entries) {
     if (entry.name === ".git") {
       walk.candidates.push(directory);
       continue;
     }
+
     if (!entry.isDirectory() || isPruned(join(directory, entry.name), entry.name)) {
       continue;
     }
+
     subdirectories.push(requireAbsolutePath(join(directory, entry.name), "walk"));
   }
+
   await Promise.all(subdirectories.map(async (subdirectory) => walkForGit(subdirectory, excludes, walk)));
 }
 
 async function requireDirectory(root: AbsolutePath): Promise<void> {
   let stats;
+
   try {
     stats = await stat(root);
   } catch (error) {
     throw new Error(`ROOT does not exist: ${root}`, { cause: error });
   }
+
   if (!stats.isDirectory()) {
     throw new Error(`ROOT is not a directory: ${root}`);
   }
@@ -257,19 +286,23 @@ type GitRun = { exitCode: number; stdout: string; stderr: string };
 async function git(cwd: string, args: readonly string[]): Promise<GitRun> {
   const child = Bun.spawn(["git", "-C", cwd, ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
   const [stdout, stderr, exitCode] = await Promise.all([child.stdout.text(), child.stderr.text(), child.exited]);
+
   return { exitCode, stdout, stderr };
 }
 
 function stderrTail(stderr: string): string {
   const trimmed = stderr.trim();
+
   return trimmed.length <= STDERR_TAIL_CHARS ? trimmed : `...${trimmed.slice(-STDERR_TAIL_CHARS)}`;
 }
 
 async function requireGit(cwd: string, args: readonly string[]): Promise<string> {
   const run = await git(cwd, args);
+
   if (run.exitCode !== 0) {
     throw new Error(`git ${args[0] ?? ""} exited ${String(run.exitCode)}: ${stderrTail(run.stderr)}`);
   }
+
   return run.stdout;
 }
 
@@ -277,7 +310,9 @@ async function requireGitVersion(): Promise<void> {
   if (Bun.which("git") === null) {
     throw new Error("git is required; install it from https://git-scm.com");
   }
+
   const version = parseGitVersion(await requireGit(".", ["--version"]));
+
   if (!Bun.semver.satisfies(version, MIN_GIT_VERSION)) {
     throw new Error(`git ${MIN_GIT_VERSION} is required (for-each-ref %(worktreepath)); found ${version}`);
   }
@@ -295,7 +330,9 @@ class Semaphore {
         this.waiters.push(release);
       });
     }
+
     this.active += 1;
+
     try {
       return await task();
     } finally {
@@ -321,31 +358,40 @@ class NotARepoError extends Error {}
 
 async function readLayout(candidate: string): Promise<Layout> {
   const run = await git(candidate, ["rev-parse", "--show-toplevel", "--git-dir", "--git-common-dir"]);
+
   if (run.exitCode !== 0) {
     const tail = stderrTail(run.stderr);
+
     if (NOT_A_REPO_PATTERN.test(tail)) {
       throw new NotARepoError(tail);
     }
+
     throw new Error(`git rev-parse exited ${String(run.exitCode)}: ${tail}`);
   }
+
   const lines = run.stdout.trimEnd().split("\n");
   const [toplevel, gitDir, commonDir] = lines;
+
   if (lines.length !== 3 || toplevel === undefined || gitDir === undefined || commonDir === undefined) {
     throw new Error(`unexpected rev-parse output: "${lines.join(" | ")}"`);
   }
+
   const root = requireAbsolutePath(toplevel, "rev-parse --show-toplevel");
   const gitPath = resolve(candidate, gitDir);
   const commonPath = resolve(candidate, commonDir);
+
   const worktree: Worktree =
     gitPath === commonPath
       ? { kind: "main" }
       : { kind: "linked", commonRoot: requireAbsolutePath(dirname(commonPath), "rev-parse --git-common-dir") };
+
   return { root, gitPath, commonPath, worktree };
 }
 
 async function mtimeSeconds(path: string): Promise<UnixSeconds | undefined> {
   try {
     const stats = await stat(path);
+
     return requireUnixSeconds(Math.floor(stats.mtimeMs / MILLISECONDS_PER_SECOND), `mtime of ${path}`);
   } catch {
     return undefined;
@@ -361,19 +407,24 @@ async function readLastFetch(layout: Layout): Promise<LastFetch> {
   const stamps = await Promise.all(
     [layout.gitPath, layout.commonPath].map(async (dir) => mtimeSeconds(join(dir, "FETCH_HEAD"))),
   );
+
   const known = stamps.filter((stamp) => stamp !== undefined);
+
   return known.length === 0 ? { kind: "never" } : { kind: "at", at: known.reduce((a, b) => (a > b ? a : b)) };
 }
 
 async function readRemotes(root: AbsolutePath): Promise<ReturnType<typeof parseRemotesOutput>> {
   const run = await git(root, ["config", "--get-regexp", "^remote\\..*\\.url$"]);
+
   // `git config --get-regexp` exits 1 when nothing matches; that is the no-remote case, not a failure.
   if (run.exitCode === 1 && run.stdout === "") {
     return [];
   }
+
   if (run.exitCode !== 0) {
     throw new Error(`git config exited ${String(run.exitCode)}: ${stderrTail(run.stderr)}`);
   }
+
   return parseRemotesOutput(run.stdout);
 }
 
@@ -388,12 +439,16 @@ async function fetchIfRequested(root: AbsolutePath, remote: RemoteName, context:
   if (!context.options.fetch) {
     return { kind: "not-requested" };
   }
+
   return context.fetchSlots.run(async () => {
     const run = await git(root, ["fetch", "--quiet", "--prune", remote]);
+
     if (run.exitCode !== 0) {
       return { kind: "failed", message: stderrTail(run.stderr) };
     }
+
     await git(root, ["remote", "set-head", remote, "--auto"]);
+
     return { kind: "ok", remote };
   });
 }
@@ -401,23 +456,30 @@ async function fetchIfRequested(root: AbsolutePath, remote: RemoteName, context:
 async function classify(candidate: string, context: ScanContext): Promise<Repo | undefined> {
   let step: GitStep = "rev-parse";
   let root = requireAbsolutePath(candidate, "candidate");
+
   try {
     const layout = await readLayout(candidate);
     ({ root } = layout);
+
     if (context.seen.has(root) || isExcluded(root, context.excludes)) {
       return undefined;
     }
+
     context.seen.add(root);
+
     if (layout.worktree.kind === "linked" && !context.options.worktrees) {
       return { kind: "linked-worktree", root, commonRoot: layout.worktree.commonRoot };
     }
 
     step = "config";
     const remotes = await readRemotes(root);
+
     if (remotes.length === 0) {
       return { kind: "local-only", root, worktree: layout.worktree };
     }
+
     const owner = ownedRemote(remotes, context.login);
+
     if (owner === undefined) {
       return { kind: "foreign", root, worktree: layout.worktree, remotes };
     }
@@ -426,12 +488,15 @@ async function classify(candidate: string, context: ScanContext): Promise<Repo |
     const lastFetch = await readLastFetch(layout);
 
     step = "for-each-ref";
+
     const { branches, defaultBranch } = parseForEachRef(
       await requireGit(root, ["for-each-ref", `--format=${FOR_EACH_REF_FORMAT}`, ...forEachRefPatterns(owner.name)]),
       owner.name,
     );
+
     const reported =
       layout.worktree.kind === "linked" ? branches.filter((branch) => branch.checkout.kind === "here") : branches;
+
     return {
       kind: "owned",
       root,
@@ -446,6 +511,7 @@ async function classify(candidate: string, context: ScanContext): Promise<Repo |
     if (error instanceof NotARepoError) {
       return { kind: "not-a-repo", root, message: error.message };
     }
+
     return { kind: "error", root, step, message: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -453,13 +519,16 @@ async function classify(candidate: string, context: ScanContext): Promise<Repo |
 async function mapLimit<T, R>(values: readonly T[], limit: number, fn: (value: T) => Promise<R>): Promise<R[]> {
   const results: R[] = [];
   const queue = values.entries();
+
   async function worker(): Promise<void> {
     for (const [index, value] of queue) {
       // oxlint-disable-next-line eslint/no-await-in-loop -- each worker is deliberately sequential; parallelism is the worker count.
       results[index] = await fn(value);
     }
   }
+
   await Promise.all(Array.from({ length: Math.min(limit, values.length) }, worker));
+
   return results;
 }
 
@@ -467,6 +536,7 @@ async function mapLimit<T, R>(values: readonly T[], limit: number, fn: (value: T
 
 function configHome(env: Environment, home: AbsolutePath): string {
   const xdg = env["XDG_CONFIG_HOME"];
+
   return xdg === undefined || xdg === "" ? join(home, ".config") : xdg;
 }
 
@@ -474,23 +544,28 @@ async function resolveLogin(owner: OwnerSource, config: string): Promise<GithubL
   if (owner.kind !== "hosts") {
     return owner.login;
   }
+
   if (!Bun.semver.satisfies(Bun.version, MIN_BUN_VERSION_FOR_YAML)) {
     throw new Error(
       `reading gh's hosts.yml needs Bun ${MIN_BUN_VERSION_FOR_YAML} (found ${Bun.version}); pass --owner LOGIN or set ${OWNER_ENV}`,
     );
   }
+
   const hostsPath = join(config, "gh", "hosts.yml");
   const hosts = Bun.file(hostsPath);
+
   if (!(await hosts.exists())) {
     throw new Error(
       `no GitHub login: pass --owner LOGIN, set ${OWNER_ENV}, or run "gh auth login" (${hostsPath} not found)`,
     );
   }
+
   return loginFromHosts(Bun.YAML.parse(await hosts.text()), hostsPath);
 }
 
 async function readExcludes(config: string, home: AbsolutePath): Promise<AbsolutePath[]> {
   const exclude = Bun.file(join(config, "git-owned-unpushed", "exclude"));
+
   return (await exclude.exists()) ? parseExcludeFile(await exclude.text(), home) : [];
 }
 
@@ -504,21 +579,27 @@ async function verifyRemoteFindings(
   context: ScanContext,
 ): Promise<readonly Repo[]> {
   const suspect = new Set(report.findings.filter(dependsOnRemote).map((finding) => finding.root));
+
   if (suspect.size === 0) {
     return repos;
   }
+
   const fetching: ScanContext = { ...context, options: { ...context.options, fetch: true }, seen: new Set() };
   const rechecked = await mapLimit([...suspect], context.options.jobs, async (root) => classify(root, fetching));
   const byRoot = new Map(rechecked.filter((repo): repo is Repo => repo !== undefined).map((repo) => [repo.root, repo]));
+
   return repos.map((repo) => byRoot.get(repo.root) ?? repo);
 }
 
 async function main(argv: readonly string[], env: Environment): Promise<ExitCode> {
   const options = parseCliArgs(argv, env);
+
   if (options === "help") {
     console.log(USAGE);
+
     return 0;
   }
+
   await requireGitVersion();
   const home = requireHome(env);
   const config = configHome(env, home);
@@ -529,6 +610,7 @@ async function main(argv: readonly string[], env: Environment): Promise<ExitCode
   await Promise.all(options.roots.map(async (root) => walkForGit(root, excludes, walk)));
 
   const context: ScanContext = { options, login, excludes, seen: new Set(), fetchSlots: new Semaphore(FETCH_JOBS) };
+
   const scanned = (
     await mapLimit(walk.candidates, options.jobs, async (candidate) => classify(candidate, context))
   ).filter((repo): repo is Repo => repo !== undefined);
@@ -537,6 +619,7 @@ async function main(argv: readonly string[], env: Environment): Promise<ExitCode
   const repos = options.verify ? await verifyRemoteFindings(scanned, buildReport(scanned, focus), context) : scanned;
   const report = buildReport(repos, focus);
   const now = requireUnixSeconds(Math.floor(Date.now() / MILLISECONDS_PER_SECOND), "clock");
+
   if (options.json) {
     for (const repo of repos.filter((entry) => isReportable(entry, focus))) {
       console.log(JSON.stringify(toJsonRepo(repo, focus)));
@@ -546,10 +629,13 @@ async function main(argv: readonly string[], env: Environment): Promise<ExitCode
       console.log(renderFinding(finding, now));
     }
   }
+
   for (const message of walk.unreadable) {
     console.error(`unreadable: ${message}`);
   }
+
   console.error(renderSummary(repos.length, report, walk.unreadable.length));
+
   return exitCodeOf(report, walk.unreadable.length);
 }
 
