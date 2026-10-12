@@ -12,8 +12,8 @@ import {
   parseExcludeFile,
   parseForEachRef,
   parseGitVersion,
-  parseRemotesOutput,
   parseRemoteUrl,
+  parseRemotesOutput,
   parseTrack,
   renderFinding,
   renderSummary,
@@ -91,7 +91,7 @@ describe("brands", () => {
   });
 
   test("requirePositiveInt rejects zero, fractions, and NaN", () => {
-    expect<number>(requirePositiveInt(0x37cf, "t")).toBe(14287);
+    expect<number>(requirePositiveInt(0x37_cf, "t")).toBe(14_287);
 
     for (const bad of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => requirePositiveInt(bad, "t")).toThrow("expected a positive integer");
@@ -225,7 +225,7 @@ describe("parseForEachRef", () => {
     expect(branches[1]).toMatchObject({
       checkout: { kind: "here" },
       upstream: { kind: "tracked", remote: "origin", branch: "main", delta: { kind: "ahead", ahead: 2 } },
-      lastCommitAt: 1787828220,
+      lastCommitAt: 1_787_828_220,
     });
     expect(branches[2]).toMatchObject({
       checkout: { kind: "elsewhere", path: "/home/tester/Work/app.wt/y" },

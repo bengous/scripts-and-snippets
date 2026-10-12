@@ -4,14 +4,14 @@ import type {
   AbsolutePath,
   ExitCode,
   FetchOutcome,
-  GithubLogin,
   GitStep,
+  GithubLogin,
   LastFetch,
   OwnerSource,
   PositiveInt,
   RemoteName,
-  Report,
   Repo,
+  Report,
   UnixSeconds,
   Worktree,
 } from "./model.ts";
@@ -20,15 +20,15 @@ import { availableParallelism } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  FOR_EACH_REF_FORMAT,
+  NOT_A_REPO_PATTERN,
   buildReport,
   dependsOnRemote,
   exitCodeOf,
-  FOR_EACH_REF_FORMAT,
   forEachRefPatterns,
   isExcluded,
   isReportable,
   loginFromHosts,
-  NOT_A_REPO_PATTERN,
   ownedRemote,
   ownerSource,
   parseExcludeFile,
@@ -414,7 +414,7 @@ async function readLastFetch(layout: Layout): Promise<LastFetch> {
 }
 
 async function readRemotes(root: AbsolutePath): Promise<ReturnType<typeof parseRemotesOutput>> {
-  const run = await git(root, ["config", "--get-regexp", "^remote\\..*\\.url$"]);
+  const run = await git(root, ["config", "--get-regexp", String.raw`^remote\..*\.url$`]);
 
   // `git config --get-regexp` exits 1 when nothing matches; that is the no-remote case, not a failure.
   if (run.exitCode === 1 && run.stdout === "") {

@@ -542,11 +542,15 @@ export function parseExcludeFile(text: string, home: AbsolutePath): AbsolutePath
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith("#"))
-    .map((line) => {
-      const expanded = line === "~" ? home : line.startsWith("~/") ? `${home}/${line.slice(2)}` : line;
+    .map((line) => requireAbsolutePath(expandHome(line, home), "exclude file"));
+}
 
-      return requireAbsolutePath(expanded, "exclude file");
-    });
+function expandHome(line: string, home: AbsolutePath): string {
+  if (line === "~") {
+    return home;
+  }
+
+  return line.startsWith("~/") ? `${home}/${line.slice(2)}` : line;
 }
 
 export function isExcluded(root: AbsolutePath, prefixes: readonly AbsolutePath[]): boolean {
@@ -619,20 +623,29 @@ function branchFinding(repo: OwnedRepo, branch: Branch): Finding | undefined {
 
   switch (upstream.delta.kind) {
     case "synced":
-    case "behind":
+    case "behind": {
       return undefined;
-    case "gone":
+    }
+
+    case "gone": {
       return { kind: "GONE", ...base };
-    case "ahead":
+    }
+
+    case "ahead": {
       return tracksOther
         ? { kind: "TRACKS_OTHER", ...base, drift: upstream.delta }
         : { kind: "AHEAD", ...base, ahead: upstream.delta.ahead };
-    case "diverged":
+    }
+
+    case "diverged": {
       return tracksOther
         ? { kind: "TRACKS_OTHER", ...base, drift: upstream.delta }
         : { kind: "DIVERGED", ...base, ahead: upstream.delta.ahead, behind: upstream.delta.behind };
-    default:
+    }
+
+    default: {
       return unreachable(upstream.delta);
+    }
   }
 }
 
@@ -640,17 +653,23 @@ type RepoFindings = { findings: Finding[]; hidden: number };
 
 function repoFindings(repo: Repo, options: FocusOptions): RepoFindings {
   switch (repo.kind) {
-    case "error":
+    case "error": {
       return {
         findings: [{ kind: "ERROR", root: repo.root, step: repo.step, message: repo.message }],
         hidden: 0,
       };
+    }
+
     case "not-a-repo":
     case "linked-worktree":
-    case "foreign":
+    case "foreign": {
       return { findings: [], hidden: 0 };
-    case "local-only":
+    }
+
+    case "local-only": {
       return { findings: [{ kind: "LOCAL_ONLY", root: repo.root }], hidden: 0 };
+    }
+
     case "owned": {
       const findings: Finding[] = [];
       let hidden = 0;
@@ -667,27 +686,37 @@ function repoFindings(repo: Repo, options: FocusOptions): RepoFindings {
         }
 
         switch (visibility(branch, repo.defaultBranch, options)) {
-          case "shown":
+          case "shown": {
             findings.push(finding);
             break;
-          case "hidden":
+          }
+
+          case "hidden": {
             hidden += 1;
             break;
-          case "delegated":
+          }
+
+          case "delegated": {
             break;
+          }
         }
       }
 
       return { findings, hidden };
     }
 
-    default:
+    default: {
       return unreachable(repo);
+    }
   }
 }
 
 function compareStrings(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+  if (a < b) {
+    return -1;
+  }
+
+  return a > b ? 1 : 0;
 }
 
 function branchOf(finding: Finding): string {
@@ -770,28 +799,43 @@ export function renderFinding(finding: Finding, now: UnixSeconds): string {
   const status = finding.kind.padEnd(STATUS_WIDTH);
 
   switch (finding.kind) {
-    case "LOCAL_ONLY":
+    case "LOCAL_ONLY": {
       return `${status} ${finding.root}`;
-    case "NO_UPSTREAM":
+    }
+
+    case "NO_UPSTREAM": {
       return `${status} ${finding.root} branch=${finding.branch}`;
-    case "GONE":
+    }
+
+    case "GONE": {
       return `${status} ${finding.root} branch=${finding.branch} upstream=${finding.remote}/${finding.upstream}${renderFreshness(finding.freshness, now)}`;
-    case "AHEAD":
+    }
+
+    case "AHEAD": {
       return `${status} ${finding.root} branch=${finding.branch} ahead=${String(finding.ahead)} upstream=${finding.remote}/${finding.upstream}${renderFreshness(finding.freshness, now)}`;
-    case "DIVERGED":
+    }
+
+    case "DIVERGED": {
       return `${status} ${finding.root} branch=${finding.branch} ahead=${String(finding.ahead)} behind=${String(finding.behind)} upstream=${finding.remote}/${finding.upstream}${renderFreshness(finding.freshness, now)}`;
+    }
+
     case "TRACKS_OTHER": {
       const behind = finding.drift.kind === "diverged" ? ` behind=${String(finding.drift.behind)}` : "";
 
       return `${status} ${finding.root} branch=${finding.branch} ahead=${String(finding.drift.ahead)}${behind} upstream=${finding.remote}/${finding.upstream}${renderFreshness(finding.freshness, now)}`;
     }
 
-    case "FETCH_FAIL":
+    case "FETCH_FAIL": {
       return `${status} ${finding.root} message=${finding.message}`;
-    case "ERROR":
+    }
+
+    case "ERROR": {
       return `${status} ${finding.root} step=${finding.step} message=${finding.message}`;
-    default:
+    }
+
+    default: {
       return unreachable(finding);
+    }
   }
 }
 
