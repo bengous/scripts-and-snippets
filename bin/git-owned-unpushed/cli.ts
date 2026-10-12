@@ -15,10 +15,12 @@ import type {
   UnixSeconds,
   Worktree,
 } from "./model.ts";
+
 import { readdir, stat } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+
 import {
   FOR_EACH_REF_FORMAT,
   NOT_A_REPO_PATTERN,

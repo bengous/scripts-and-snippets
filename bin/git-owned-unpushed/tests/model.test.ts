@@ -1,5 +1,7 @@
 import type { Branch, DefaultBranch, Delta, Finding, Repo } from "../model.ts";
+
 import { describe, expect, test } from "bun:test";
+
 import {
   buildReport,
   dependsOnRemote,
