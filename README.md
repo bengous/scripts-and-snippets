@@ -8,7 +8,6 @@ Each one solves a single problem and has no dependency beyond the tool it wraps.
 | Script | Needs | What it does |
 | --- | --- | --- |
 | [`git-ignore-local`](bin/git-ignore-local/) | bash, git | Creates `.gitignore.local` in a repo root, linked to Git's `info/exclude`, so you can ignore files locally without touching `.gitignore`. |
-| [`git-owned-unpushed`](bin/git-owned-unpushed/) | [bun](https://bun.com), git ≥ 2.23 | Scans your home directory for Git repos that belong to your GitHub account and still hold work you never pushed. |
 
 Each script owns one directory under `bin/`, holding its entrypoint, any module
 it imports, its tests, and its own README. Follow a link above for the detail.
@@ -30,9 +29,6 @@ Or symlink one entrypoint and leave its directory where it is:
 ```sh
 ln -s "$PWD/scripts-and-snippets/bin/git-ignore-local/git-ignore-local" ~/.local/bin/
 ```
-
-A script reads the files next to it, so link the entrypoint, never a lone copy.
-The link itself is fine: both scripts resolve their own directory through it.
 
 A script named `git-*` on your `PATH` also works as a Git subcommand:
 `git ignore-local`.
